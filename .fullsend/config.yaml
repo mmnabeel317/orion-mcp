@@ -12,6 +12,19 @@ roles:
     - fix
     - retro
     - prioritize
+agents:
+    - name: triage
+      model: haiku
+    - name: code
+      model: haiku
+    - name: review
+      model: haiku
+    - name: fix
+      model: haiku
+    - name: retro
+      model: haiku
+    - name: prioritize
+      model: haiku
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
