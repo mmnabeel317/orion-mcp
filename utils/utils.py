@@ -14,9 +14,10 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -24,8 +25,16 @@ import httpx
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Define ORION_CONFIGS_PATH locally to avoid circular import
-ORION_CONFIGS_PATH = "/orion/examples/"
+from utils.constants import (
+    DEFAULT_ES_BENCHMARK_INDEX,
+    DEFAULT_ES_METADATA_INDEX,
+    DEFAULT_LOOKBACK_DAYS,
+    GITHUB_CONFIGS_URL,
+    GITHUB_HTTP_TIMEOUT,
+    ORION_CONFIGS_PATH,
+)
+
+logger = logging.getLogger(__name__)
 
 # Context variable for ES config from encrypted request headers
 # Provides async-safe isolation between concurrent requests
@@ -62,9 +71,9 @@ async def run_command_async(command: list[str] | str, env: Optional[dict] = None
     Returns:
         A subprocess.CompletedProcess-like object with args, returncode, stdout, stderr.
     """
-    print(f"Running command: {command}")
+    logger.debug("Running command: %s", command)
     if cwd:
-        print(f"Working directory: {cwd}")
+        logger.debug("Working directory: %s", cwd)
     if env is not None:
         env_vars = os.environ.copy()
         env_vars.update(env)
@@ -100,6 +109,7 @@ async def run_command_async(command: list[str] | str, env: Optional[dict] = None
         )
         return result
     except (OSError, subprocess.SubprocessError) as e:
+        logger.error("Command execution failed: %s", e)
         return subprocess.CompletedProcess(
             args=command,
             returncode=1,
@@ -147,7 +157,7 @@ async def run_orion(
 
     command = []
     if not shutil.which("orion"):
-        print("Using orion from podman")
+        logger.info("Using orion from podman")
         command = ["podman", "run", "--env-host",
             "orion",
             "orion",
@@ -157,7 +167,7 @@ async def run_orion(
             "-o", "json"
         ]
     else:
-        print("Using orion from path")
+        logger.info("Using orion from path")
         command = [
             "orion",
             "--lookback", f"{lookback}d",
@@ -198,26 +208,19 @@ async def run_orion(
         "es_benchmark_index": es_benchmark_index,
     }
 
-    # Log env
-    print(f"Env: version={version}, es_metadata_index={es_metadata_index}, es_benchmark_index={es_benchmark_index}")
-    result = await run_command_async(command, env=env, cwd="/tmp")
-    # Log the full result for debugging
-    print(f"Orion return code: {result.returncode}")
-    print(f"Orion stdout: {result.stdout}")
-    print(f"Orion stderr: {result.stderr}")
+    logger.debug("Env: version=%s, es_metadata_index=%s, es_benchmark_index=%s", version, es_metadata_index, es_benchmark_index)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        result = await run_command_async(command, env=env, cwd=tmpdir)
+    logger.debug("Orion return code: %d", result.returncode)
+    logger.debug("Orion stdout: %s", result.stdout)
+    logger.debug("Orion stderr: %s", result.stderr)
     return result
 
 
 async def summarize_result(result: subprocess.CompletedProcess, isolate: Optional[str] = None) -> dict | str:
-    """
-    Summarize the Orion result into a dictionary.
+    """Summarize Orion result into per-metric value lists.
 
-    Args:
-        result: The json output from the Orion command.
-        isolate: Optional metric name to isolate for backwards compatibility.
-
-    Returns:
-        A dictionary containing the summary of the Orion analysis with full run data preserved.
+    Returns {metric_name: {"value": [v1, v2, ...]}, ...} or {} on no data.
     """
     summary = {}
     try:
@@ -228,26 +231,22 @@ async def summarize_result(result: subprocess.CompletedProcess, isolate: Optiona
         if len(data) == 0:
             return {}
 
-        # Store all runs with full data
         summary["runs"] = data
 
-        # For backwards compatibility, also provide metric-focused summary
         for run in data:
             for metric_name, metric_data in run["metrics"].items():
                 summary["timestamp"] = run["timestamp"]
                 # Isolate specific metric if specified
                 if isolate is not None:
                     if isolate != metric_name:
-                        print(f"Skipping {metric_name} because it doesn't contain {isolate}")
+                        logger.debug("Skipping %s because it doesn't contain %s", metric_name, isolate)
                         continue
                 if metric_name not in summary:
-                    summary[metric_name] = {}
-                    summary[metric_name] = {
-                        "value": [metric_data["value"]],
-                    }
+                    summary[metric_name] = {"value": [metric_data["value"]]}
                 else:
                     summary[metric_name]["value"].append(metric_data["value"])
     except Exception as e:
+        logger.error("Error summarizing Orion result: %s", e)
         return f"Error : {e}"
     return summary
 
@@ -266,14 +265,14 @@ def get_data_source() -> str:
     # Check context variable first (set from encrypted header)
     es_config = current_es_config.get()
     if es_config and "es_server" in es_config:
-        print("Using ES_SERVER from encrypted request header")
+        logger.info("Using ES_SERVER from encrypted request header")
         return es_config["es_server"]
 
     # Fall back to environment variable
     value = os.environ.get("ES_SERVER")
     if value is None:
         raise EnvironmentError("ES_SERVER environment variable is not set")
-    print("Using ES_SERVER from environment variable")
+    logger.info("Using ES_SERVER from environment variable")
     return value
 
 
@@ -292,12 +291,12 @@ def get_es_metadata_index() -> str:
     # Check context variable first
     es_config = current_es_config.get()
     if es_config and "es_metadata_index" in es_config:
-        print("Using es_metadata_index from encrypted request header")
+        logger.info("Using es_metadata_index from encrypted request header")
         return es_config["es_metadata_index"]
 
     # Fall back to environment variable
-    print("Using es_metadata_index from environment/default")
-    return resolve_env_var("es_metadata_index", "ES_METADATA_INDEX", "perf_scale_ci*")
+    logger.info("Using es_metadata_index from environment/default")
+    return resolve_env_var("es_metadata_index", "ES_METADATA_INDEX", DEFAULT_ES_METADATA_INDEX)
 
 
 def get_es_benchmark_index() -> str:
@@ -315,45 +314,48 @@ def get_es_benchmark_index() -> str:
     # Check context variable first
     es_config = current_es_config.get()
     if es_config and "es_benchmark_index" in es_config:
-        print("Using es_benchmark_index from encrypted request header")
+        logger.info("Using es_benchmark_index from encrypted request header")
         return es_config["es_benchmark_index"]
 
     # Fall back to environment variable
-    print("Using es_benchmark_index from environment/default")
-    return resolve_env_var("es_benchmark_index", "ES_BENCHMARK_INDEX", "ripsaw-kube-burner-*")
+    logger.info("Using es_benchmark_index from environment/default")
+    return resolve_env_var("es_benchmark_index", "ES_BENCHMARK_INDEX", DEFAULT_ES_BENCHMARK_INDEX)
 
 
-async def orion_metrics(config_list: list, version: str = "4.20") -> dict | str:
+async def orion_metrics(config_list: list, version: str = "4.20", input_vars: Optional[dict] = None) -> dict | str:
     """
     Provide the metrics for Orion analysis.
     Args:
         config_list: List of Orion configuration files.
+        version: OpenShift version to query.
+        input_vars: Optional template variables for config rendering.
     Returns:
         A dictionary containing the metrics for Orion analysis.
         the key is the config the metric is associated with
         the value is a list of all the metric names that are available for that config
     """
-    metrics = {} 
+    metrics = {}
     for config in config_list:
         result = await run_orion(
             config=config,
             version=version,
-            lookback="15"
+            lookback=DEFAULT_LOOKBACK_DAYS,
+            input_vars=input_vars,
         )
         try:
             sum_result = await summarize_result(result)
-            print(f"Sum result: {sum_result}")
+            logger.debug("Sum result: %s", sum_result)
             if isinstance(sum_result, dict):
-                # Exclude helper keys so callers do not mistake metadata fields like runs/timestamp for queryable metrics.
                 metrics[config] = [
                     key for key in sum_result.keys() if key not in {"runs", "timestamp"}
                 ]
             else:
+                logger.error("Error processing result for %s: %s", config, sum_result)
                 return f"Error processing result for {config}: {sum_result}"
         except (KeyError, ValueError, TypeError) as e:
             return f"Error processing result for {config}: {e}"
 
-    return metrics 
+    return metrics
     
 
 # Correlation helper functions
@@ -382,11 +384,6 @@ def compute_correlation(values1: list[float], values2: list[float]) -> float:
     return float(np.corrcoef(values1, values2)[0, 1])
 
 
-GITHUB_CONFIGS_URL = "https://api.github.com/repos/cloud-bulldozer/orion/contents/examples"
-
-logger = logging.getLogger(__name__)
-
-
 def list_orion_configs() -> list[str]:
     """
     List the Orion configuration files.
@@ -396,7 +393,7 @@ def list_orion_configs() -> list[str]:
     2. Local /orion/examples/ directory
     """
     try:
-        resp = httpx.get(GITHUB_CONFIGS_URL, timeout=10)
+        resp = httpx.get(GITHUB_CONFIGS_URL, timeout=GITHUB_HTTP_TIMEOUT)
         resp.raise_for_status()
         configs = [
             item["name"]
@@ -410,7 +407,8 @@ def list_orion_configs() -> list[str]:
 
     try:
         return [f for f in os.listdir(ORION_CONFIGS_PATH) if f.endswith(".yaml")]
-    except (FileNotFoundError, OSError):
+    except (FileNotFoundError, OSError) as e:
+        logger.warning("Failed to list local configs from %s: %s", ORION_CONFIGS_PATH, e)
         return []
 
 def generate_correlation_plot(
@@ -587,13 +585,13 @@ def parse_timestamp(timestamp_val) -> Optional[datetime]:
     """
     try:
         if isinstance(timestamp_val, (int, float)):
-            return datetime.fromtimestamp(timestamp_val)
+            return datetime.fromtimestamp(timestamp_val, tz=timezone.utc)
         if isinstance(timestamp_val, str):
             try:
-                return datetime.fromtimestamp(float(timestamp_val))
+                return datetime.fromtimestamp(float(timestamp_val), tz=timezone.utc)
             except ValueError:
                 ts_clean = timestamp_val.replace("Z", "").split("+")[0].split(".")[0]
-                return datetime.fromisoformat(ts_clean)
+                return datetime.fromisoformat(ts_clean).replace(tzinfo=timezone.utc)
     except (ValueError, TypeError, OSError):
         pass
     return None
