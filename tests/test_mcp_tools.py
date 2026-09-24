@@ -18,7 +18,6 @@ import orion_mcp
 class TestMCPToolResponseShapes:
     """Tests for MCP tool response shapes and types."""
 
-    @pytest.mark.asyncio
     async def test_get_orion_configs_returns_text_content(self):
         """Test that get_orion_configs returns proper TextContent."""
         with patch('orion_mcp.ORION_CONFIGS', ["config1.yaml", "config2.yaml"]):
@@ -29,54 +28,58 @@ class TestMCPToolResponseShapes:
             if isinstance(result, list):
                 assert all(isinstance(item, str) for item in result)
 
-    @pytest.mark.asyncio
     async def test_discover_jobs_response_structure(self):
         """Test that discover_jobs returns expected structure."""
         # Mock the dependencies
         with patch('orion_mcp._resolve_configs_from_prow', new_callable=AsyncMock) as mock_prow:
             with patch('orion_mcp.httpx.AsyncClient') as mock_client:
-                mock_prow.return_value = ["config1.yaml"]
-                mock_response = MagicMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = {
-                    "results": [
-                        {
-                            "metadata": {
-                                "name": "test-job",
-                                "labels": {
-                                    "platform": "aws",
-                                    "workload": "cluster-density"
+                with patch('orion_mcp.get_data_source', return_value='http://localhost:9200'):
+                    with patch('orion_mcp.get_es_metadata_index', return_value='perf_scale_ci*'):
+                        mock_prow.return_value = ["config1.yaml"]
+                        mock_response = MagicMock()
+                        mock_response.status_code = 200
+                        mock_response.json.return_value = {
+                            "aggregations": {
+                                "jobs": {
+                                    "buckets": [
+                                        {
+                                            "key": "test-job",
+                                            "benchmarks": {
+                                                "buckets": [{"key": "cluster-density"}]
+                                            }
+                                        }
+                                    ]
                                 }
                             }
                         }
-                    ]
-                }
 
-                # Mock the HTTP client
-                async_cm = MagicMock()
-                async_cm.__aenter__.return_value.get = AsyncMock(return_value=mock_response)
-                async_cm.__aexit__.return_value = None
-                mock_client.return_value = async_cm
+                        # Mock the HTTP client
+                        async_cm = MagicMock()
+                        async_cm.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+                        async_cm.__aexit__.return_value = None
+                        mock_client.return_value = async_cm
 
-                # The actual test would call the tool
-                # For now, we verify the structure is correct
-                assert mock_response.status_code == 200
+                        # Call the actual tool
+                        result = await orion_mcp.discover_jobs()
+                        # Verify the result is a dict or string
+                        assert isinstance(result, (dict, str))
 
-    @pytest.mark.asyncio
     async def test_get_performance_summary_response_type(self):
         """Test that get_performance_summary returns text summary."""
         with patch('orion_mcp._summarize_single_config', new_callable=AsyncMock) as mock_summary:
-            mock_summary.return_value = {
-                "metrics": {
-                    "cpu": {"min": 10, "max": 50, "avg": 30}
+            with patch('orion_mcp.get_data_source', return_value='http://localhost:9200'):
+                mock_summary.return_value = {
+                    "metrics": {
+                        "cpu": {"min": 10, "max": 50, "avg": 30}
+                    }
                 }
-            }
 
-            # Test that the tool handles responses correctly
-            # The actual response should be formatted as text
-            assert mock_summary is not None
+                # Call the actual tool
+                result = await orion_mcp.get_performance_summary(config_name="test.yaml")
+                # Verify it returns a dict with metrics
+                assert isinstance(result, dict)
+                assert "metrics" in result or "summary" in result or len(result) > 0
 
-    @pytest.mark.asyncio
     async def test_metrics_correlation_response_is_image(self):
         """Test that metrics_correlation returns image content."""
         with patch('orion_mcp.generate_correlation_plot') as mock_plot:
@@ -150,30 +153,36 @@ class TestMCPToolParameterValidation:
         """Test config path construction."""
         from orion_mcp import _config_path
 
-        with patch('utils.constants.ORION_CONFIGS_PATH', '/etc/orion/configs'):
+        with patch('orion_mcp.ORION_CONFIGS_PATH', '/etc/orion/configs'):
             path = _config_path("cluster-density.yaml")
+            assert "/etc/orion/configs" in path
             assert "cluster-density.yaml" in path
 
     def test_config_path_with_subdirectory(self):
         """Test config path with subdirectory."""
         from orion_mcp import _config_path
 
-        with patch('utils.constants.ORION_CONFIGS_PATH', '/etc/orion/configs'):
+        with patch('orion_mcp.ORION_CONFIGS_PATH', '/etc/orion/configs'):
             result = _config_path("networking/latency.yaml")
+            assert "/etc/orion/configs" in result
             assert "latency.yaml" in result
 
 
 class TestMCPToolErrorHandling:
     """Tests for MCP tool error handling and error responses."""
 
-    @pytest.mark.asyncio
     async def test_tool_handles_missing_parameters(self):
         """Test that tools handle missing required parameters gracefully."""
-        # Tools should raise appropriate errors for missing parameters
-        # This is typically handled by the MCP framework
-        pass
+        # Test get_performance_summary with missing required config parameter
+        # Should raise or return appropriate error message
+        try:
+            result = await orion_mcp.get_performance_summary(config=None)
+            # If it returns without error, verify it's a string
+            assert isinstance(result, str)
+        except (TypeError, ValueError):
+            # Expected: tool should reject missing required parameters
+            pass
 
-    @pytest.mark.asyncio
     async def test_tool_handles_invalid_config(self):
         """Test that tools handle invalid config names."""
         from orion_mcp import _config_path
@@ -184,18 +193,24 @@ class TestMCPToolErrorHandling:
             # Path construction should not raise, but later file operations would
             assert result is not None
 
-    @pytest.mark.asyncio
     async def test_tool_error_response_format(self):
         """Test that tool errors are formatted properly."""
-        # MCP tools should return error responses in proper format
-        # Either as text content with error message or via MCP error mechanism
-        pass
+        # Test with invalid config name
+        with patch('orion_mcp._config_path') as mock_path:
+            with patch('orion_mcp.get_data_source', return_value='http://localhost:9200'):
+                mock_path.side_effect = FileNotFoundError("Config not found")
+                try:
+                    result = await orion_mcp.get_performance_summary(config_name="nonexistent.yaml")
+                    # If tool handles error gracefully, should return something
+                    assert result is not None
+                except FileNotFoundError:
+                    # Expected: tool propagates file not found error
+                    pass
 
 
 class TestAsyncContextIsolation:
     """Tests for async context isolation."""
 
-    @pytest.mark.asyncio
     async def test_concurrent_requests_context_isolation(self):
         """Test that concurrent requests have isolated contexts."""
         from utils.utils import current_es_config

@@ -11,8 +11,9 @@ Covers:
 
 import pytest
 from unittest.mock import patch
+from yaml.parser import ParserError
 
-from utils.utils import list_orion_configs
+from utils.utils import list_orion_configs, get_data_source, current_es_config
 from orion_mcp import _render_config_yaml
 
 
@@ -35,22 +36,24 @@ class TestConfigPathValidation:
 
     def test_list_orion_configs_empty_directory(self, tmp_path):
         """Test listing configs from an empty directory."""
-        with patch('utils.constants.ORION_CONFIGS_PATH', str(tmp_path)):
-            configs = list_orion_configs()
-            assert configs == []
+        with patch('utils.utils.ORION_CONFIGS_PATH', str(tmp_path)):
+            with patch('utils.utils.GITHUB_CONFIGS_URL', None):
+                configs = list_orion_configs()
+                assert configs == []
 
     def test_list_orion_configs_nonexistent_directory(self):
         """Test listing configs from a non-existent directory."""
         nonexistent = "/nonexistent/path/that/does/not/exist/12345"
-        with patch('utils.constants.ORION_CONFIGS_PATH', nonexistent):
-            # Should handle gracefully - either return empty list or raise
-            try:
-                configs = list_orion_configs()
-                # If it returns, it should be an empty list
-                assert isinstance(configs, list)
-            except (FileNotFoundError, OSError):
-                # This is also acceptable behavior
-                pass
+        with patch('utils.utils.ORION_CONFIGS_PATH', nonexistent):
+            with patch('utils.utils.GITHUB_CONFIGS_URL', None):
+                # Should handle gracefully - either return empty list or raise
+                try:
+                    configs = list_orion_configs()
+                    # If it returns, it should be an empty list
+                    assert isinstance(configs, list)
+                except (FileNotFoundError, OSError):
+                    # This is also acceptable behavior
+                    pass
 
     def test_list_orion_configs_filters_yaml_files(self, tmp_path):
         """Test that only .yaml files are returned."""
@@ -129,8 +132,6 @@ invalid: [yaml: syntax:
         config_file.write_text(config_content)
 
         # Invalid YAML will raise an error during yaml.safe_load
-        from yaml.parser import ParserError
-
         variables = {}
         with pytest.raises(ParserError):
             _render_config_yaml(str(config_file), "", input_vars=variables)
@@ -178,12 +179,9 @@ class TestConfigurationResolution:
 
     def test_get_data_source_from_environment(self, monkeypatch):
         """Test getting data source from environment variable."""
-        from utils.utils import get_data_source
-
         monkeypatch.setenv("ES_SERVER", "http://localhost:9200")
         monkeypatch.delenv("es_metadata_index", raising=False)
         # Reset context variable
-        from utils.utils import current_es_config
         current_es_config.set(None)
 
         result = get_data_source()
@@ -191,8 +189,6 @@ class TestConfigurationResolution:
 
     def test_get_data_source_from_context(self):
         """Test getting data source from context variable."""
-        from utils.utils import get_data_source, current_es_config
-
         context_config = {"es_server": "http://context-server:9200"}
         token = current_es_config.set(context_config)
 
@@ -204,8 +200,6 @@ class TestConfigurationResolution:
 
     def test_get_data_source_missing(self, monkeypatch):
         """Test error when data source is not set."""
-        from utils.utils import get_data_source, current_es_config
-
         monkeypatch.delenv("ES_SERVER", raising=False)
         current_es_config.set(None)
 

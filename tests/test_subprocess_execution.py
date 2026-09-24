@@ -22,14 +22,12 @@ from utils.utils import run_command_async, run_orion
 class TestRunCommandAsync:
     """Tests for the run_command_async function."""
 
-    @pytest.mark.asyncio
     async def test_run_command_success(self):
         """Test successful command execution."""
         result = await run_command_async(["echo", "hello"])
         assert result.returncode == 0
         assert "hello" in result.stdout
 
-    @pytest.mark.asyncio
     async def test_run_command_with_env(self):
         """Test command execution with environment variables."""
         result = await run_command_async(
@@ -39,7 +37,6 @@ class TestRunCommandAsync:
         assert result.returncode == 0
         assert "test_value" in result.stdout
 
-    @pytest.mark.asyncio
     async def test_run_command_with_cwd(self, tmp_path):
         """Test command execution with working directory."""
         # Create a test file in the temp directory
@@ -53,7 +50,6 @@ class TestRunCommandAsync:
         assert result.returncode == 0
         assert "test.txt" in result.stdout
 
-    @pytest.mark.asyncio
     async def test_run_command_shell_execution(self):
         """Test shell=True execution."""
         result = await run_command_async(
@@ -64,13 +60,11 @@ class TestRunCommandAsync:
         assert "hello" in result.stdout
         assert "world" in result.stdout
 
-    @pytest.mark.asyncio
     async def test_run_command_non_zero_exit_code(self):
         """Test handling of non-zero exit codes."""
         result = await run_command_async(["sh", "-c", "exit 42"])
         assert result.returncode == 42
 
-    @pytest.mark.asyncio
     async def test_run_command_stderr(self):
         """Test stderr capture."""
         result = await run_command_async(
@@ -79,7 +73,6 @@ class TestRunCommandAsync:
         assert result.returncode == 1
         assert "error" in result.stderr
 
-    @pytest.mark.asyncio
     async def test_run_command_command_not_found(self):
         """Test handling of command not found."""
         result = await run_command_async(["nonexistent_command_12345"])
@@ -87,21 +80,18 @@ class TestRunCommandAsync:
         # Error message contains either FileNotFoundError or "No such file or directory"
         assert "FileNotFoundError" in result.stderr or "No such file or directory" in result.stderr
 
-    @pytest.mark.asyncio
     async def test_run_command_shell_type_validation(self):
         """Test that shell=True requires string command."""
         # shell=True with list should raise TypeError
         with pytest.raises(TypeError):
             await run_command_async(["echo", "test"], shell=True)
 
-    @pytest.mark.asyncio
     async def test_run_command_exec_type_validation(self):
         """Test that shell=False requires list command."""
         # shell=False with string should raise TypeError
         with pytest.raises(TypeError):
             await run_command_async("echo test", shell=False)
 
-    @pytest.mark.asyncio
     async def test_run_command_timeout_handling(self):
         """Test timeout handling with asyncio.wait_for."""
         # This tests that the command can be cancelled via asyncio
@@ -111,7 +101,6 @@ class TestRunCommandAsync:
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(slow_command(), timeout=0.5)
 
-    @pytest.mark.asyncio
     async def test_run_command_large_output(self):
         """Test handling of large stdout/stderr."""
         large_text = "x" * 10000
@@ -125,7 +114,6 @@ class TestRunCommandAsync:
 class TestRunOrion:
     """Tests for the run_orion function."""
 
-    @pytest.mark.asyncio
     async def test_run_orion_basic_parameters(self):
         """Test that run_orion constructs command correctly."""
         with patch('utils.utils.run_command_async') as mock_run:
@@ -153,7 +141,6 @@ class TestRunOrion:
                             assert "7d" in call_args[0][0]
                             assert "json" in call_args[0][0]
 
-    @pytest.mark.asyncio
     async def test_run_orion_with_input_vars(self):
         """Test run_orion with input variables."""
         with patch('utils.utils.run_command_async') as mock_run:
@@ -179,18 +166,16 @@ class TestRunOrion:
                             call_args = mock_run.call_args
                             assert "--input-vars" in call_args[0][0]
 
-    @pytest.mark.asyncio
     async def test_run_orion_missing_data_source(self):
-        """Test run_orion raises ValueError when data source is not set."""
-        with patch('utils.utils.get_data_source', side_effect=ValueError("Data source is not set")):
-            with pytest.raises(ValueError):
+        """Test run_orion raises EnvironmentError when data source is not set."""
+        with patch('utils.utils.get_data_source', side_effect=EnvironmentError("ES_SERVER not set")):
+            with pytest.raises(EnvironmentError):
                 await run_orion(
                     config="/path/to/config.yaml",
                     version="4.22",
                     lookback="7"
                 )
 
-    @pytest.mark.asyncio
     async def test_run_orion_jira_options(self):
         """Test run_orion with JIRA options."""
         with patch('utils.utils.run_command_async') as mock_run:
@@ -218,7 +203,6 @@ class TestRunOrion:
                             assert "--jira-status-filter" in call_args[0][0]
                             assert "Done" in call_args[0][0]
 
-    @pytest.mark.asyncio
     async def test_run_orion_pr_analysis(self):
         """Test run_orion with PR analysis options."""
         with patch('utils.utils.run_command_async') as mock_run:

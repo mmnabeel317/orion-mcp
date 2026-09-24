@@ -19,7 +19,6 @@ from utils.utils import summarize_result
 class TestSummarizeResult:
     """Tests for the summarize_result function."""
 
-    @pytest.mark.asyncio
     async def test_summarize_result_valid_json(self):
         """Test summarizing valid Orion JSON output."""
         orion_output = [
@@ -45,7 +44,6 @@ class TestSummarizeResult:
         assert summary["cpu_usage"]["value"] == [42.5]
         assert summary["memory_usage"]["value"] == [1024]
 
-    @pytest.mark.asyncio
     async def test_summarize_result_multiple_runs(self):
         """Test summarizing multiple runs."""
         orion_output = [
@@ -68,7 +66,6 @@ class TestSummarizeResult:
         summary = await summarize_result(result)
         assert summary["metric1"]["value"] == [10, 20]
 
-    @pytest.mark.asyncio
     async def test_summarize_result_empty_json(self):
         """Test handling of empty JSON array."""
         result = subprocess.CompletedProcess(
@@ -81,7 +78,6 @@ class TestSummarizeResult:
         summary = await summarize_result(result)
         assert summary == {}
 
-    @pytest.mark.asyncio
     async def test_summarize_result_exit_code_3(self):
         """Test handling of exit code 3 (no data)."""
         result = subprocess.CompletedProcess(
@@ -94,7 +90,6 @@ class TestSummarizeResult:
         summary = await summarize_result(result)
         assert summary == {}
 
-    @pytest.mark.asyncio
     async def test_summarize_result_malformed_json(self):
         """Test handling of malformed JSON."""
         result = subprocess.CompletedProcess(
@@ -108,7 +103,6 @@ class TestSummarizeResult:
         assert isinstance(summary, str)
         assert "Error" in summary
 
-    @pytest.mark.asyncio
     async def test_summarize_result_non_json_output(self):
         """Test handling of non-JSON output."""
         result = subprocess.CompletedProcess(
@@ -122,7 +116,6 @@ class TestSummarizeResult:
         assert isinstance(summary, str)
         assert "Error" in summary
 
-    @pytest.mark.asyncio
     async def test_summarize_result_isolate_metric(self):
         """Test isolating a specific metric."""
         orion_output = [
@@ -146,7 +139,6 @@ class TestSummarizeResult:
         assert "memory_usage" not in summary
         assert summary["cpu_usage"]["value"] == [42.5]
 
-    @pytest.mark.asyncio
     async def test_summarize_result_timestamp_preserved(self):
         """Test that timestamps are preserved in summary."""
         orion_output = [
@@ -165,7 +157,6 @@ class TestSummarizeResult:
         summary = await summarize_result(result)
         assert summary["timestamp"] == "2026-01-01T12:34:56Z"
 
-    @pytest.mark.asyncio
     async def test_summarize_result_missing_metrics_field(self):
         """Test handling of missing metrics field."""
         orion_output = [
@@ -185,7 +176,6 @@ class TestSummarizeResult:
         assert isinstance(summary, str)
         assert "Error" in summary
 
-    @pytest.mark.asyncio
     async def test_summarize_result_non_zero_exit_code(self):
         """Test handling of non-zero exit code (not 3)."""
         result = subprocess.CompletedProcess(

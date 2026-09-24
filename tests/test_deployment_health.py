@@ -20,7 +20,6 @@ from utils.utils import run_orion
 class TestDeploymentDetection:
     """Tests for detecting local vs containerized deployment."""
 
-    @pytest.mark.asyncio
     async def test_orion_binary_detection_local(self):
         """Test detection of local orion binary uses local command."""
         with patch('shutil.which', return_value='/usr/local/bin/orion'):
@@ -42,7 +41,6 @@ class TestDeploymentDetection:
                             called_command = mock_run.call_args[0][0]
                             assert called_command[0] == "orion"
 
-    @pytest.mark.asyncio
     async def test_orion_binary_detection_missing(self):
         """Test detection when orion binary is missing uses podman."""
         with patch('shutil.which', return_value=None):
@@ -64,7 +62,6 @@ class TestDeploymentDetection:
                             called_command = mock_run.call_args[0][0]
                             assert called_command[0] == "podman"
 
-    @pytest.mark.asyncio
     async def test_podman_fallback_when_orion_missing(self):
         """Test that podman is used when orion binary is missing."""
         with patch('shutil.which', return_value=None):
@@ -90,41 +87,45 @@ class TestDeploymentDetection:
 class TestHealthChecks:
     """Tests for deployment health checks."""
 
-    @pytest.mark.asyncio
     async def test_es_server_connectivity_check(self):
         """Test checking ES server connectivity."""
-        with patch('httpx.Client') as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"version": {"number": "7.17.0"}}
+        # Test get_data_source which calls ES_SERVER environment variable
+        import os
+        original_es = os.environ.get('ES_SERVER')
+        try:
+            os.environ['ES_SERVER'] = 'http://test-es:9200'
+            from utils.utils import get_data_source
+            result = get_data_source()
+            # Verify the function returns the configured ES server
+            assert isinstance(result, str)
+            assert 'test-es' in result
+            assert '9200' in result
+        finally:
+            if original_es:
+                os.environ['ES_SERVER'] = original_es
+            else:
+                os.environ.pop('ES_SERVER', None)
 
-            mock_cm = MagicMock()
-            mock_cm.__enter__.return_value.get.return_value = mock_response
-            mock_cm.__exit__.return_value = None
-
-            with mock_client():
-                # In real code, we would make an HTTP request
-                # For now, we validate the pattern
-                assert mock_response.status_code == 200
-
-    @pytest.mark.asyncio
     async def test_es_server_connectivity_failure(self):
         """Test handling of ES server connectivity failure."""
         with patch('httpx.Client', side_effect=httpx.ConnectError("Connection failed")):
             with pytest.raises(httpx.ConnectError):
                 httpx.Client()
 
-    @pytest.mark.asyncio
     async def test_configuration_path_validation_local(self, tmp_path):
         """Test configuration path validation for local deployment."""
         config_file = tmp_path / "test.yaml"
         config_file.write_text("test: config")
 
-        # In local deployment, config files should be accessible
-        assert config_file.exists()
-        assert config_file.stat().st_size > 0
+        # Test list_orion_configs with a local path
+        from utils.utils import list_orion_configs
+        with patch('utils.utils.ORION_CONFIGS_PATH', str(tmp_path)):
+            with patch('utils.utils.GITHUB_CONFIGS_URL', None):
+                configs = list_orion_configs()
+                # Verify the function returns the config we created
+                assert isinstance(configs, list)
+                assert "test.yaml" in configs
 
-    @pytest.mark.asyncio
     async def test_configuration_path_validation_containerized(self):
         """Test configuration path handling for containerized deployment."""
         # In containerized deployment, config paths are relative to mounted volumes
@@ -143,28 +144,31 @@ class TestHealthChecks:
         result = get_data_source()
         assert "opensearch.example.com" in result
 
-    @pytest.mark.asyncio
     async def test_temporary_directory_handling(self):
-        """Test that temporary directories are properly created and cleaned up."""
-        import tempfile
+        """Test that temporary directories are properly created and cleaned up in run_orion."""
+        # Test run_orion which creates a temporary directory for the command
+        with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
+            with patch('shutil.which', return_value='/usr/bin/orion'):
+                with patch('utils.utils.get_data_source', return_value='http://localhost:9200'):
+                    with patch('utils.utils.get_es_metadata_index', return_value='perf_scale_ci*'):
+                        with patch('utils.utils.get_es_benchmark_index', return_value='perf_scale_results*'):
+                            mock_run.return_value = MagicMock(returncode=0, stdout='[]', stderr='')
 
-        # In run_orion, a temporary directory is created for the command
-        with tempfile.TemporaryDirectory() as tmpdir:
-            assert os.path.exists(tmpdir)
-            # Create a file in it
-            test_file = os.path.join(tmpdir, "test.txt")
-            with open(test_file, 'w') as f:
-                f.write("test")
-            assert os.path.exists(test_file)
+                            # Call run_orion
+                            result = await run_orion(
+                                config="/path/to/config.yaml",
+                                version="4.22",
+                                lookback="7"
+                            )
 
-        # After exiting the context, it should be cleaned up
-        assert not os.path.exists(tmpdir)
+                            # Verify run_orion was called and executed
+                            assert result.returncode == 0
+                            assert mock_run.called
 
 
 class TestErrorReporting:
     """Tests for error reporting in deployment contexts."""
 
-    @pytest.mark.asyncio
     async def test_orion_command_error_reporting(self):
         """Test that orion command errors are properly reported."""
         with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
@@ -187,7 +191,6 @@ class TestErrorReporting:
                             assert result.returncode == 1
                             assert "Orion error message" in result.stderr
 
-    @pytest.mark.asyncio
     async def test_configuration_not_found_error(self):
         """Test error when configuration file is not found."""
         with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
@@ -210,7 +213,6 @@ class TestErrorReporting:
                             assert result.returncode == 1
                             assert "not found" in result.stderr.lower()
 
-    @pytest.mark.asyncio
     async def test_environment_variable_validation(self, monkeypatch):
         """Test that required environment variables are validated."""
         from utils.utils import get_data_source
@@ -251,7 +253,6 @@ class TestConfigurationResolutionInDeployment:
         # The constant should reflect the environment setting (if it uses it)
         assert isinstance(ORION_CONFIGS_PATH, str)
 
-    @pytest.mark.asyncio
     async def test_encrypted_header_context_in_deployment(self):
         """Test that encrypted headers work in deployment."""
         from utils.utils import current_es_config

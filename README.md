@@ -130,6 +130,9 @@ To access the service externally, expose it using an **OpenShift Route** and poi
 ## Development
 
 ```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
 # Run linters & tests
 flake8
 pytest

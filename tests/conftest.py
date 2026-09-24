@@ -22,16 +22,11 @@ def mock_es_environment(monkeypatch):
 def clean_context():
     """Fixture that resets the context variable."""
     from utils.utils import current_es_config
-    # Save the current value
-    original = current_es_config.get()
-    # Reset to None
-    current_es_config.set(None)
+    # Save the token from setting to None
+    token = current_es_config.set(None)
     yield
-    # Restore
-    if original is not None:
-        current_es_config.set(original)
-    else:
-        current_es_config.set(None)
+    # Restore using the token
+    current_es_config.reset(token)
 
 
 @pytest.fixture
