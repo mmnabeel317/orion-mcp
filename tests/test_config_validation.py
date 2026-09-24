@@ -13,6 +13,7 @@ import pytest
 from unittest.mock import patch
 
 from utils.utils import list_orion_configs
+from orion_mcp import _render_config_yaml
 
 
 class TestConfigPathValidation:
@@ -82,9 +83,6 @@ workload: "{{ workload }}"
         config_file = tmp_path / "test.yaml"
         config_file.write_text(config_content)
 
-        # Import the function
-        from orion_mcp import _render_config_yaml
-
         variables = {"platform": "aws", "workload": "cluster-density"}
         result = _render_config_yaml(str(config_file), "", input_vars=variables)
 
@@ -103,8 +101,6 @@ workload: "{{ workload }}"
         config_file = tmp_path / "test.yaml"
         config_file.write_text(config_content)
 
-        from orion_mcp import _render_config_yaml
-
         variables = {"platform": "aws"}  # Missing "workload"
         # This may raise an error or use a default - depends on Jinja2 settings
         try:
@@ -117,8 +113,6 @@ workload: "{{ workload }}"
 
     def test_render_config_invalid_path(self, tmp_path):
         """Test rendering a config from a non-existent file."""
-        from orion_mcp import _render_config_yaml
-
         invalid_path = str(tmp_path / "nonexistent.yaml")
         variables = {"platform": "aws"}
 
@@ -135,7 +129,6 @@ invalid: [yaml: syntax:
         config_file.write_text(config_content)
 
         # Invalid YAML will raise an error during yaml.safe_load
-        from orion_mcp import _render_config_yaml
         from yaml.parser import ParserError
 
         variables = {}
@@ -155,8 +148,6 @@ fips_enabled: false
         config_file = tmp_path / "conditional.yaml"
         config_file.write_text(config_content)
 
-        from orion_mcp import _render_config_yaml
-
         variables = {"fips": "true"}
         result = _render_config_yaml(str(config_file), "", input_vars=variables)
         # Result is a dict
@@ -172,8 +163,6 @@ selected_node: "{{ selected_node }}"
 """
         config_file = tmp_path / "loops.yaml"
         config_file.write_text(config_content)
-
-        from orion_mcp import _render_config_yaml
 
         # Note: input_vars are converted to strings when passed to Jinja2
         variables = {"node_string": "worker,master,infra", "selected_node": "worker"}

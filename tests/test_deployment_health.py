@@ -20,21 +20,52 @@ from utils.utils import run_orion
 class TestDeploymentDetection:
     """Tests for detecting local vs containerized deployment."""
 
-    def test_orion_binary_detection_local(self):
-        """Test detection of local orion binary."""
+    @pytest.mark.asyncio
+    async def test_orion_binary_detection_local(self):
+        """Test detection of local orion binary uses local command."""
         with patch('shutil.which', return_value='/usr/local/bin/orion'):
-            import shutil
-            result = shutil.which("orion")
-            assert result is not None
+            with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
+                with patch('utils.utils.get_data_source', return_value='http://localhost:9200'):
+                    with patch('utils.utils.get_es_metadata_index', return_value='perf_scale_ci*'):
+                        with patch('utils.utils.get_es_benchmark_index', return_value='perf_scale_results*'):
+                            mock_run.return_value = MagicMock(returncode=0, stdout='[]', stderr='')
 
-    def test_orion_binary_detection_missing(self):
-        """Test detection when orion binary is missing."""
+                            result = await run_orion(
+                                config="/path/to/config.yaml",
+                                version="4.22",
+                                lookback="7"
+                            )
+
+                            # Verify run_orion was called and returned expected result
+                            assert result.returncode == 0
+                            # Verify the command started with "orion" (not "podman")
+                            called_command = mock_run.call_args[0][0]
+                            assert called_command[0] == "orion"
+
+    @pytest.mark.asyncio
+    async def test_orion_binary_detection_missing(self):
+        """Test detection when orion binary is missing uses podman."""
         with patch('shutil.which', return_value=None):
-            import shutil
-            result = shutil.which("orion")
-            assert result is None
+            with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
+                with patch('utils.utils.get_data_source', return_value='http://localhost:9200'):
+                    with patch('utils.utils.get_es_metadata_index', return_value='perf_scale_ci*'):
+                        with patch('utils.utils.get_es_benchmark_index', return_value='perf_scale_results*'):
+                            mock_run.return_value = MagicMock(returncode=0, stdout='[]', stderr='')
 
-    def test_podman_fallback_when_orion_missing(self):
+                            result = await run_orion(
+                                config="/path/to/config.yaml",
+                                version="4.22",
+                                lookback="7"
+                            )
+
+                            # Verify run_orion was called and returned expected result
+                            assert result.returncode == 0
+                            # Verify the command started with "podman" (not "orion")
+                            called_command = mock_run.call_args[0][0]
+                            assert called_command[0] == "podman"
+
+    @pytest.mark.asyncio
+    async def test_podman_fallback_when_orion_missing(self):
         """Test that podman is used when orion binary is missing."""
         with patch('shutil.which', return_value=None):
             with patch('utils.utils.run_command_async', new_callable=AsyncMock) as mock_run:
@@ -43,9 +74,17 @@ class TestDeploymentDetection:
                         with patch('utils.utils.get_es_benchmark_index', return_value='perf_scale_results*'):
                             mock_run.return_value = MagicMock(returncode=0, stdout='[]', stderr='')
 
-                            # run_orion should use podman
-                            # This is tested in the actual command construction
-                            pass
+                            result = await run_orion(
+                                config="/path/to/config.yaml",
+                                version="4.22",
+                                lookback="7"
+                            )
+
+                            # Verify the command includes podman and the orion image
+                            called_command = mock_run.call_args[0][0]
+                            assert called_command[0] == "podman"
+                            assert "run" in called_command
+                            assert result.returncode == 0
 
 
 class TestHealthChecks:
