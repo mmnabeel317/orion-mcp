@@ -7,13 +7,13 @@ version: "1"
 runtime: claude
 roles:
     - triage
-    - coder
+    - code
     - review
     - fix
     - retro
     - prioritize
 agents:
-    # triage agent is customized with a source file
+    # triage agent is customized with a source file; model override below
     - name: triage
       source: ./triage.yaml
       model: haiku
