@@ -7,23 +7,29 @@ version: "1"
 runtime: claude
 roles:
     - triage
-    - coder
+    - code
     - review
     - fix
     - retro
     - prioritize
 agents:
+    # triage agent is customized with a source file; model override below
     - name: triage
       source: ./triage.yaml
       model: haiku
+    # code agent uses defaults from agents repo; model override below
     - name: code
       model: haiku
+    # review agent uses defaults from agents repo; model override below
     - name: review
       model: sonnet
+    # fix agent uses defaults from agents repo; model override below
     - name: fix
       model: haiku
+    # retro agent uses defaults from agents repo; model override below
     - name: retro
       model: haiku
+    # prioritize agent uses defaults from agents repo; model override below
     - name: prioritize
       model: haiku
 allowed_remote_resources:
