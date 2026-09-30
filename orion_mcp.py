@@ -22,6 +22,7 @@ from pydantic import Field
 
 # Import utility functions from utils module
 import httpx
+
 from utils.constants import (
     DEFAULT_CONFIG,
     DEFAULT_LOOKBACK_DAYS,
@@ -129,11 +130,7 @@ async def _resolve_config_and_vars(
     """
     _extract_and_set_es_server(ctx)
     config_value = config_name or DEFAULT_CONFIG
-    try:
-        iv = _parse_input_vars(input_vars) if input_vars else None
-    except ValueError as exc:
-        logger.error("Invalid input_vars: %s", exc)
-        raise
+    iv = _parse_input_vars(input_vars) if input_vars else None
     return config_value, iv
 
 
@@ -430,7 +427,10 @@ async def get_orion_metrics(
     Returns:
         Dict keyed by config with list of metric names.
     """
-    effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
+    try:
+        effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
+    except ValueError as exc:
+        return {"error": str(exc)}
 
     result = await orion_metrics([_config_path(effective_config)], version=version, input_vars=iv)
 
@@ -460,7 +460,11 @@ async def get_orion_metrics_with_meta(
     Returns:
         Dict with "metrics" (list of names) and "meta" (per-metric label, direction, threshold).
     """
-    effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
+    try:
+        effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
+    except ValueError as exc:
+        return {"error": str(exc)}
+
     try:
         metrics, meta_map = _load_config_metrics_with_meta(
             _config_path(effective_config),
@@ -522,11 +526,14 @@ async def openshift_report_on(
 
     first_ver = version_list[0] if version_list else "4.19"
     configs = _split_configs(config_name)
-    if not configs:
-        config_value, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
-        configs = [config_value]
-    else:
-        _, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
+    try:
+        if not configs:
+            config_value, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
+            configs = [config_value]
+        else:
+            _, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
+    except ValueError as exc:
+        return types.TextContent(type="text", text=f"Error: {exc}")
 
     all_series: dict[str, list[float]] = {}
     all_full_data: list[dict] = []
@@ -660,11 +667,14 @@ async def get_orion_performance_data(
     """
     _extract_and_set_es_server(ctx)
     configs = _split_configs(config_name)
-    if not configs:
-        config_value, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
-        configs = [config_value]
-    else:
-        _, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
+    try:
+        if not configs:
+            config_value, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
+            configs = [config_value]
+        else:
+            _, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
+    except ValueError as exc:
+        return {"error": str(exc)}
 
     results = []
     for cfg in configs:
@@ -1037,9 +1047,12 @@ async def metrics_correlation(
     Returns:
         ImageContent (scatter-plot PNG) or TextContent (error).
     """
-    config_value, iv = await _resolve_config_and_vars(
-        ctx, config_name, version, input_vars,
-    )
+    try:
+        config_value, iv = await _resolve_config_and_vars(
+            ctx, config_name, version, input_vars,
+        )
+    except ValueError as exc:
+        return types.TextContent(type="text", text=f"Error: {exc}")
 
     result = await run_orion(
         config=_config_path(config_value),

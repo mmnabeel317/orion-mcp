@@ -124,3 +124,47 @@ def test_plain_text_raises_value_error():
     """Plain text (not JSON at all) raises ValueError."""
     with pytest.raises(ValueError, match="Malformed input_vars JSON"):
         _parse_input_vars("just text")
+
+
+# ---------------------------------------------------------------------------
+# Integration test: MCP tools return structured errors on non-object JSON
+# ---------------------------------------------------------------------------
+
+
+def test_get_orion_metrics_rejects_non_object_json():
+    """Test that get_orion_metrics returns a structured error dict when input_vars is non-object JSON.
+
+    This test ensures that non-object JSON values (arrays, strings, numbers, booleans, null)
+    do not crash the MCP tool but instead return an error response that the MCP framework
+    can handle without exception.
+    """
+    import asyncio
+    from unittest.mock import AsyncMock, patch
+    from orion_mcp import get_orion_metrics
+
+    async def run_test():
+        # Test with a JSON array (non-object)
+        with patch('orion_mcp._extract_and_set_es_server'):
+            result = await get_orion_metrics(
+                config_name="cluster-density.yaml",
+                version="4.20",
+                input_vars="[1, 2, 3]",  # Non-object JSON
+                ctx=None
+            )
+            assert isinstance(result, dict)
+            assert "error" in result
+            assert "input_vars JSON type error" in result["error"]
+
+        # Test with JSON null
+        with patch('orion_mcp._extract_and_set_es_server'):
+            result = await get_orion_metrics(
+                config_name="cluster-density.yaml",
+                version="4.20",
+                input_vars="null",  # Non-object JSON
+                ctx=None
+            )
+            assert isinstance(result, dict)
+            assert "error" in result
+            assert "input_vars JSON type error" in result["error"]
+
+    asyncio.run(run_test())
