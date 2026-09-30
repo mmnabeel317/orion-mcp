@@ -14,7 +14,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-# Import utility functions from utils module
 import httpx
 import jinja2
 import yaml
@@ -22,6 +21,7 @@ from mcp import types
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
+# Import utility functions from utils module
 from utils.constants import (
     DEFAULT_CONFIG,
     DEFAULT_LOOKBACK_DAYS,
@@ -96,7 +96,7 @@ def _parse_input_vars(input_vars: str) -> dict | None:
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
     if not isinstance(parsed, dict):
-        raise ValueError(f"input_vars must be a JSON object, got {type(parsed).__name__}")
+        raise ValueError(f"input_vars JSON must be an object, got {type(parsed).__name__}")
     return parsed
 
 

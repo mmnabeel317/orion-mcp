@@ -12,7 +12,7 @@ import pytest
 from orion_mcp import _parse_input_vars
 
 # ---------------------------------------------------------------------------
-# Valid inputs — should return a dict
+# Edge inputs — returns None
 # ---------------------------------------------------------------------------
 
 
@@ -21,10 +21,9 @@ def test_empty_string_returns_none():
     assert _parse_input_vars("") is None
 
 
-def test_whitespace_only_raises_value_error():
-    """Whitespace-only strings are invalid JSON and should raise ValueError."""
-    with pytest.raises(ValueError, match="Malformed input_vars JSON"):
-        _parse_input_vars("   ")
+# ---------------------------------------------------------------------------
+# Valid inputs — should return a dict
+# ---------------------------------------------------------------------------
 
 
 def test_valid_object_returns_dict():
@@ -52,55 +51,61 @@ def test_nested_object_returns_dict():
 
 def test_json_array_raises_value_error():
     """A JSON array is not a valid input_vars value."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("[]")
 
 
 def test_json_array_with_items_raises_value_error():
     """A non-empty JSON array is still rejected."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars('["a", "b"]')
 
 
 def test_json_string_raises_value_error():
     """A bare JSON string is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars('"hello"')
 
 
 def test_json_integer_raises_value_error():
     """A JSON number is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("42")
 
 
 def test_json_float_raises_value_error():
     """A JSON float is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("3.14")
 
 
 def test_json_true_raises_value_error():
     """JSON true is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("true")
 
 
 def test_json_false_raises_value_error():
     """JSON false is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("false")
 
 
 def test_json_null_raises_value_error():
     """JSON null is not an object."""
-    with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+    with pytest.raises(ValueError, match="input_vars JSON must be an object"):
         _parse_input_vars("null")
 
 
 # ---------------------------------------------------------------------------
 # Malformed JSON — must continue to raise ValueError
 # ---------------------------------------------------------------------------
+
+
+def test_whitespace_only_raises_value_error():
+    """Whitespace-only strings are invalid JSON and should raise ValueError."""
+    with pytest.raises(ValueError, match="Malformed input_vars JSON"):
+        _parse_input_vars("   ")
 
 
 def test_malformed_json_raises_value_error():
