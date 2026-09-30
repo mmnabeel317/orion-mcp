@@ -14,11 +14,12 @@ roles:
     - prioritize
 agents:
     - name: triage
+      source: ./triage.yaml
       model: haiku
     - name: code
-      model: haiku
+      model: claude-sonnet-4-5@20250929
     - name: review
-      model: haiku
+      model: claude-sonnet-4-5@20250929
     - name: fix
       model: haiku
     - name: retro
