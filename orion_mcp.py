@@ -427,10 +427,7 @@ async def get_orion_metrics(
     Returns:
         Dict keyed by config with list of metric names.
     """
-    try:
-        effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
-    except ValueError as exc:
-        return {"error": str(exc)}
+    effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
 
     result = await orion_metrics([_config_path(effective_config)], version=version, input_vars=iv)
 
@@ -460,10 +457,7 @@ async def get_orion_metrics_with_meta(
     Returns:
         Dict with "metrics" (list of names) and "meta" (per-metric label, direction, threshold).
     """
-    try:
-        effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
-    except ValueError as exc:
-        return {"error": str(exc)}
+    effective_config, iv = await _resolve_config_and_vars(ctx, config_name, version, input_vars)
 
     try:
         metrics, meta_map = _load_config_metrics_with_meta(
@@ -526,14 +520,11 @@ async def openshift_report_on(
 
     first_ver = version_list[0] if version_list else "4.19"
     configs = _split_configs(config_name)
-    try:
-        if not configs:
-            config_value, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
-            configs = [config_value]
-        else:
-            _, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
-    except ValueError as exc:
-        return types.TextContent(type="text", text=f"Error: {exc}")
+    if not configs:
+        config_value, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
+        configs = [config_value]
+    else:
+        _, iv = await _resolve_config_and_vars(ctx, None, first_ver, input_vars)
 
     all_series: dict[str, list[float]] = {}
     all_full_data: list[dict] = []
@@ -667,14 +658,11 @@ async def get_orion_performance_data(
     """
     _extract_and_set_es_server(ctx)
     configs = _split_configs(config_name)
-    try:
-        if not configs:
-            config_value, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
-            configs = [config_value]
-        else:
-            _, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
-    except ValueError as exc:
-        return {"error": str(exc)}
+    if not configs:
+        config_value, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
+        configs = [config_value]
+    else:
+        _, iv = await _resolve_config_and_vars(ctx, None, version, input_vars)
 
     results = []
     for cfg in configs:
@@ -1047,12 +1035,9 @@ async def metrics_correlation(
     Returns:
         ImageContent (scatter-plot PNG) or TextContent (error).
     """
-    try:
-        config_value, iv = await _resolve_config_and_vars(
-            ctx, config_name, version, input_vars,
-        )
-    except ValueError as exc:
-        return types.TextContent(type="text", text=f"Error: {exc}")
+    config_value, iv = await _resolve_config_and_vars(
+        ctx, config_name, version, input_vars,
+    )
 
     result = await run_orion(
         config=_config_path(config_value),
