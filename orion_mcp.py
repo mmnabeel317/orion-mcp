@@ -14,14 +14,13 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+# Import utility functions from utils module
+import httpx
 import jinja2
 import yaml
 from mcp import types
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
-
-# Import utility functions from utils module
-import httpx
 
 from utils.constants import (
     DEFAULT_CONFIG,
@@ -39,19 +38,19 @@ from utils.constants import (
 )
 from utils.header_decryption import get_es_config_from_headers
 from utils.utils import (
-    run_orion,
-    summarize_result,
-    get_data_source,
-    orion_metrics,
-    orion_configs,
+    current_es_config,  # Context variable for ES config isolation
+    filter_data_by_timestamp,
     generate_correlation_plot,
     generate_multi_line_plot,
+    get_data_source,
+    get_es_metadata_index,
     list_orion_configs,
+    orion_configs,
+    orion_metrics,
     parse_nightly_version,
     parse_timestamp,
-    filter_data_by_timestamp,
-    get_es_metadata_index,
-    current_es_config,  # Context variable for ES config isolation
+    run_orion,
+    summarize_result,
 )
 
 logger = logging.getLogger(__name__)
@@ -97,7 +96,7 @@ def _parse_input_vars(input_vars: str) -> dict | None:
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
     if not isinstance(parsed, dict):
-        raise ValueError("input_vars must be a JSON object")
+        raise ValueError(f"input_vars must be a JSON object, got {type(parsed).__name__}")
     return parsed
 
 

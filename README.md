@@ -90,6 +90,8 @@ python orion_mcp.py  # listens on 0.0.0.0:3030 by default
 
 All tools take explicit `config_name` and `input_vars`. Use `discover_jobs` to resolve these from ES metadata.
 
+**Note on `input_vars`:** This parameter must be a JSON object string (e.g., `{"key": "value"}`). Non-object JSON values (arrays, strings, numbers, booleans, null) are rejected with a `ValueError`.
+
 ---
 
 ## Deployment

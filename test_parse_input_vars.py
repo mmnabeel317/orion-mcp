@@ -11,7 +11,6 @@ import pytest
 
 from orion_mcp import _parse_input_vars
 
-
 # ---------------------------------------------------------------------------
 # Valid inputs — should return a dict
 # ---------------------------------------------------------------------------
@@ -22,9 +21,10 @@ def test_empty_string_returns_none():
     assert _parse_input_vars("") is None
 
 
-def test_none_like_empty_returns_none():
-    """Falsy but non-empty strings that are falsy in Python (empty string)."""
-    assert _parse_input_vars("") is None
+def test_whitespace_only_raises_value_error():
+    """Whitespace-only strings are invalid JSON and should raise ValueError."""
+    with pytest.raises(ValueError, match="Malformed input_vars JSON"):
+        _parse_input_vars("   ")
 
 
 def test_valid_object_returns_dict():
