@@ -17,9 +17,9 @@ agents:
       source: ./triage.yaml
       model: haiku
     - name: code
-      model: claude-sonnet-4-5@20250929
+      model: sonnet
     - name: review
-      model: claude-sonnet-4-5@20250929
+      model: sonnet
     - name: fix
       model: haiku
     - name: retro
