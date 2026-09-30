@@ -14,7 +14,6 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-import httpx
 import jinja2
 import yaml
 from mcp import types
@@ -22,6 +21,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
 
 # Import utility functions from utils module
+import httpx
 from utils.constants import (
     DEFAULT_CONFIG,
     DEFAULT_LOOKBACK_DAYS,
@@ -38,19 +38,19 @@ from utils.constants import (
 )
 from utils.header_decryption import get_es_config_from_headers
 from utils.utils import (
-    current_es_config,  # Context variable for ES config isolation
-    filter_data_by_timestamp,
-    generate_correlation_plot,
-    generate_multi_line_plot,
-    get_data_source,
-    get_es_metadata_index,
-    list_orion_configs,
-    orion_configs,
-    orion_metrics,
-    parse_nightly_version,
-    parse_timestamp,
     run_orion,
     summarize_result,
+    get_data_source,
+    orion_metrics,
+    orion_configs,
+    generate_correlation_plot,
+    generate_multi_line_plot,
+    list_orion_configs,
+    parse_nightly_version,
+    parse_timestamp,
+    filter_data_by_timestamp,
+    get_es_metadata_index,
+    current_es_config,  # Context variable for ES config isolation
 )
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ def _parse_input_vars(input_vars: str) -> dict | None:
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
     if not isinstance(parsed, dict):
-        raise ValueError(f"input_vars JSON must be an object, got {type(parsed).__name__}")
+        raise ValueError(f"input_vars JSON type error: expected object, got {type(parsed).__name__}") from None
     return parsed
 
 
@@ -129,7 +129,11 @@ async def _resolve_config_and_vars(
     """
     _extract_and_set_es_server(ctx)
     config_value = config_name or DEFAULT_CONFIG
-    iv = _parse_input_vars(input_vars) if input_vars else None
+    try:
+        iv = _parse_input_vars(input_vars) if input_vars else None
+    except ValueError as exc:
+        logger.error("Invalid input_vars: %s", exc)
+        raise
     return config_value, iv
 
 
