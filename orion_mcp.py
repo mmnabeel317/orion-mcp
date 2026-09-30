@@ -86,14 +86,19 @@ def _parse_input_vars(input_vars: str) -> dict | None:
     """Parse a JSON input_vars string into a dict, or return None if empty.
 
     Raises ValueError on malformed JSON so callers can distinguish
-    "not provided" (None) from "provided but broken".
+    "not provided" (None) from "provided but broken".  Also raises
+    ValueError when the JSON is valid but not a JSON object (dict), so
+    callers never receive an unexpected type (list, str, int, bool, None).
     """
     if not input_vars:
         return None
     try:
-        return json.loads(input_vars)
+        parsed = json.loads(input_vars)
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("input_vars must be a JSON object")
+    return parsed
 
 
 def _split_configs(config_name: str | None, default: list[str] | None = None) -> list[str]:
