@@ -15,17 +15,6 @@ roles:
 agents:
     - name: triage
       source: ./triage.yaml
-      model: haiku
-    - name: code
-      model: sonnet
-    - name: review
-      model: sonnet
-    - name: fix
-      model: haiku
-    - name: retro
-      model: haiku
-    - name: prioritize
-      model: haiku
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
