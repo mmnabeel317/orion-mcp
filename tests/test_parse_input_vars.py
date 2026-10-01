@@ -53,7 +53,7 @@ class TestParseInputVarsNonObjectJson:  # pylint: disable=too-few-public-methods
     )
     def test_non_object_json_raises_value_error(self, bad_input):
         """Each non-object JSON type is rejected with a clear error."""
-        with pytest.raises(ValueError, match="input_vars must be a JSON object"):
+        with pytest.raises(ValueError, match="Non-object input_vars JSON"):
             _parse_input_vars(bad_input)
 
 

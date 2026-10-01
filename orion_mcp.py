@@ -95,7 +95,7 @@ def _parse_input_vars(input_vars: str) -> dict | None:
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
     if not isinstance(parsed, dict):
-        raise ValueError("input_vars must be a JSON object")
+        raise ValueError(f"Non-object input_vars JSON: expected dict, got {type(parsed).__name__}")
     return parsed
 
 
