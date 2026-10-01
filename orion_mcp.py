@@ -85,15 +85,18 @@ InputVarsParam = Annotated[str, Field(
 def _parse_input_vars(input_vars: str) -> dict | None:
     """Parse a JSON input_vars string into a dict, or return None if empty.
 
-    Raises ValueError on malformed JSON so callers can distinguish
-    "not provided" (None) from "provided but broken".
+    Raises ValueError on malformed JSON or non-object JSON so callers
+    can distinguish "not provided" (None) from "provided but broken".
     """
     if not input_vars:
         return None
     try:
-        return json.loads(input_vars)
+        parsed = json.loads(input_vars)
     except (json.JSONDecodeError, TypeError) as exc:
         raise ValueError(f"Malformed input_vars JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"Non-object input_vars JSON: expected dict, got {type(parsed).__name__}")
+    return parsed
 
 
 def _split_configs(config_name: str | None, default: list[str] | None = None) -> list[str]:
