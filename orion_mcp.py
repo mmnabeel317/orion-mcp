@@ -817,7 +817,7 @@ async def openshift_report_on_pr(
 
     if not config_name:
         return {"summaries": [], "error": "config_name is required — call discover_jobs with job_type='pull' first to resolve PR configs"}
-    configs = _split_configs(config_name)
+    configs = _split_configs(config_name, default=[])
 
     try:
         summaries = await get_pr_details(organization, repository, pr_list, version, lookback,

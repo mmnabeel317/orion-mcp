@@ -1,5 +1,6 @@
 """Unit tests for orion_mcp._split_configs."""
 
+import asyncio
 import importlib
 import os
 import sys
@@ -62,3 +63,20 @@ def test_names_are_trimmed_with_order_and_duplicates_preserved(config_name, expe
     """Names are trimmed, empty entries dropped, order and duplicates kept."""
     assert split_configs(config_name) == expected
     assert split_configs(config_name, default=["x.yaml"]) == expected
+
+
+BLANK_CONFIG_NAMES = [None, "", "   ", " , , ", ",,,"]
+
+
+@pytest.mark.parametrize("config_name", BLANK_CONFIG_NAMES)
+def test_report_on_pr_blank_config_name_is_rejected(config_name):
+    """openshift_report_on_pr rejects every blank config_name without running Orion."""
+    with mock.patch.object(orion_mcp, "_extract_and_set_es_server"), mock.patch.object(
+        orion_mcp, "run_orion", new=mock.AsyncMock()
+    ) as run_orion:
+        result = asyncio.run(
+            orion_mcp.openshift_report_on_pr(config_name=config_name, input_vars="", ctx=None)
+        )
+    assert result["summaries"] == []
+    assert "config_name is required" in result["error"]
+    run_orion.assert_not_called()
