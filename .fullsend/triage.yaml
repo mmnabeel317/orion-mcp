@@ -1,4 +1,5 @@
-base: https://raw.githubusercontent.com/fullsend-ai/agents/1a94080c9c2bcbb5607876f112aa4d3c4286f70b/harness/triage.yaml#sha256=7c17ed66d1618feec568111479c939ded46bcdbd5ace5650945d68dca8304b05
+# Keep human approval for coding while inheriting the current upstream harness.
+base: https://raw.githubusercontent.com/fullsend-ai/agents/56b9aa3a2a5b02d0000d1bd3f8df2fd65560a294/harness/triage.yaml#sha256=5ada8f85cee204e2fcb8ba6935b301345b3dc56ee3f306d6eafd35f7bc4312a7
 
 env:
   runner:

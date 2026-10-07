@@ -5,9 +5,12 @@
 # See https://fullsend.sh/docs/guides/infrastructure/layered-config-reference
 version: "1"
 runtime: claude
+# Model/runtime tuning mirrors fullsend-ai/fullsend@0d999c277.
+# Enable both Claude model IDs in this repo's Vertex project before running.
 models:
     aliases:
-        opus: claude-opus-4-6
+        opus: claude-opus-5-5
+        sonnet: claude-sonnet-5-5
 roles:
     - triage
     - coder
@@ -18,6 +21,29 @@ roles:
 agents:
     - name: triage
       source: ./triage.yaml
+      model: sonnet
+    - name: code
+      runtime: claude
+      model: opus
+    - name: review
+      runtime: pi
+      model: sonnet
+      subagents:
+        challenger: opus
+        correctness: openai/gpt-6.1-sol
+        docs-currency: google-vertex/gemini-3.8-flash
+        intent-coherence: google-vertex/gemini-3.8-flash
+        risk-assessment: google-vertex/gemini-3.8-flash
+        security: openai/gpt-6.1-sol
+        style-conventions: google-vertex/gemini-3.8-flash
+    - name: fix
+      model: sonnet
+    - name: retro
+      model: sonnet
+      enabled: false
+    - name: prioritize
+      runtime: pi
+      model: google-vertex/gemini-3.8-flash
 allowed_remote_resources:
     - https://raw.githubusercontent.com/fullsend-ai/fullsend/
     - https://raw.githubusercontent.com/fullsend-ai/agents/
@@ -26,6 +52,10 @@ create_issues:
         repos:
             - mmnabeel317/orion-mcp
             - fullsend-ai/fullsend
+status_notifications:
+    reaction:
+        start: enabled
+        completion: enabled
 inference:
     project: perf-agentic-fullsend
     wif_provider: projects/138380236330/locations/global/workloadIdentityPools/fullsend-inference/providers/gh-mmnabeel317-orion-mcp
