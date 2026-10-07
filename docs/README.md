@@ -14,6 +14,9 @@ Welcome to the Orion MCP documentation! This directory contains comprehensive gu
 ### Features
 - **[Features Overview](features/README.md)** - Complete features documentation including PR analysis, regression detection, and performance metrics
 
+### Development automation
+- **[Fullsend Pilot](fullsend-pilot.md)** - Upstream mixed-model configuration, inference prerequisites, and controlled retesting on the personal fork
+
 ## 🚀 Quick Navigation
 
 | I want to... | Go to... |
