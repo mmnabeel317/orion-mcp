@@ -97,10 +97,17 @@ def _parse_input_vars(input_vars: str) -> dict | None:
 
 
 def _split_configs(config_name: str | None, default: list[str] | None = None) -> list[str]:
-    """Split a comma-separated config_name into a list. Returns default (or [DEFAULT_CONFIG]) if empty."""
-    if not config_name:
-        return default if default is not None else [DEFAULT_CONFIG]
-    return [c.strip() for c in config_name.split(",") if c.strip()]
+    """Split a comma-separated config_name into a list of trimmed names.
+
+    Empty entries are dropped; order and duplicates are preserved. If no
+    names remain (None, "", or input containing only whitespace and
+    commas), returns ``default`` when supplied (even if it is an empty
+    list), otherwise ``[DEFAULT_CONFIG]``.
+    """
+    configs = [c.strip() for c in (config_name or "").split(",") if c.strip()]
+    if configs:
+        return configs
+    return default if default is not None else [DEFAULT_CONFIG]
 
 
 def _config_path(config_name: str) -> str:
