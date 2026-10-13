@@ -275,8 +275,11 @@ class TestSummarizeResult:
     """summarize_result() converts Orion JSON output into per-metric lists."""
 
     def test_returncode_3_means_no_data(self, make_result):
-        """Orion exit code 3 (no data) yields an empty dict."""
-        assert asyncio.run(summarize_result(make_result(stdout="[]", returncode=3))) == {}
+        """Orion exit code 3 (no data) yields an empty dict even if stdout has metrics."""
+        runs = _orion_runs((100, {"a": 1}))
+        assert asyncio.run(summarize_result(make_result(stdout=runs, returncode=3))) == {}
+        # Same stdout with a success exit code is summarized, proving the exit code drives the result.
+        assert asyncio.run(summarize_result(make_result(stdout=runs, returncode=0)))["a"] == {"value": [1]}
 
     def test_empty_list(self, make_result):
         """An empty JSON list yields an empty dict."""
