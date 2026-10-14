@@ -5,8 +5,8 @@
 # See https://fullsend.sh/docs/guides/infrastructure/layered-config-reference
 version: "1"
 runtime: claude
-# Model/runtime tuning mirrors fullsend-ai/fullsend@0d999c277.
-# Enable both Claude model IDs in this repo's Vertex project before running.
+# Model/runtime tuning mirrors fullsend-ai/fullsend@f75a15672.
+# Requires the configured Claude/Gemini models on Vertex and OpenAI access for review sub-agents.
 models:
     aliases:
         opus: claude-opus-5-5
