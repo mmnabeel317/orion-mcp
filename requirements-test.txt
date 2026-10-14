@@ -1,0 +1,11 @@
+# Test-only dependencies for running the unit test suite:
+#   pip install -r requirements-test.txt
+#   pytest --cov=orion_mcp --cov=utils
+-r requirements.txt
+
+pytest>=8.0
+pytest-cov>=5.0
+
+# mcp==1.18.0 fails to import with pydantic 2.14+
+# (pydantic._internal._typing_extra.eval_type_backport was removed).
+pydantic<2.14
