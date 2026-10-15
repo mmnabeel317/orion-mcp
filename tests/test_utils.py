@@ -16,6 +16,7 @@ from utils.utils import (
     orion_configs,
     parse_nightly_version,
     parse_timestamp,
+    redact_url,
     resolve_env_var,
     summarize_result,
 )
@@ -104,6 +105,15 @@ def test_get_data_source_prefers_context_over_env(monkeypatch):
     monkeypatch.delenv("ES_SERVER")
     with pytest.raises(EnvironmentError):
         get_data_source()
+
+
+def test_redact_url_strips_credentials():
+    """Userinfo and sensitive query values are removed; plain URLs are unchanged."""
+    assert redact_url("http://es.example.com:9200") == "http://es.example.com:9200"
+    assert redact_url("https://user:pw@es.example.com:9200/idx") == "https://es.example.com:9200/idx"
+    assert redact_url("https://es.example.com?api_key=abc&size=5") == (
+        "https://es.example.com?api_key=REDACTED&size=5"
+    )
 
 
 def test_es_indices_prefer_context(monkeypatch):

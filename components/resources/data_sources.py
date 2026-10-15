@@ -3,7 +3,7 @@
 from fastmcp.resources import resource
 
 from utils.constants import RELEASE_DATES
-from utils.utils import get_data_source
+from utils.utils import get_data_source, redact_url
 
 
 @resource("orion-mcp://release_dates")
@@ -23,6 +23,7 @@ def get_data_source_resource() -> str:
     set to the OpenSearch URL.
 
     Returns:
-        The OpenSearch URL as a string.
+        The OpenSearch URL as a string, with any credentials (userinfo and
+        sensitive query parameters) removed.
     """
-    return get_data_source()
+    return redact_url(get_data_source())

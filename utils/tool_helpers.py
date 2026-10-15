@@ -74,23 +74,35 @@ def extract_and_set_es_server(ctx) -> None:
     Downstream code (get_data_source, get_es_metadata_index, get_es_benchmark_index)
     checks context first.
 
-    Falls back to environment variables if no header present.
+    Falls back to environment variables only if no header is present. A header
+    that is present but cannot be decrypted or parsed raises ValueError rather
+    than silently running the request against the env-configured backend.
     """
     if not ctx:
         return
 
     # Access HTTP headers through ctx.request_context.request.headers (Starlette Request)
+    headers_dict = None
     try:
         if hasattr(ctx, 'request_context') and ctx.request_context:
             request = ctx.request_context.request
             if request and hasattr(request, 'headers'):
                 # Convert Starlette Headers to dict
                 headers_dict = dict(request.headers)
-                es_config = get_es_config_from_headers(headers_dict)
-                if es_config:
-                    current_es_config.set(es_config)
     except Exception as exc:
-        logger.debug("Failed to extract ES config from headers, falling back to env vars: %s", exc)
+        logger.debug("No request headers available, falling back to env vars: %s", exc)
+        return
+
+    if headers_dict is None:
+        return
+
+    try:
+        es_config = get_es_config_from_headers(headers_dict)
+    except ValueError as exc:
+        logger.warning("Invalid encrypted ES config header, rejecting request: %s", exc)
+        raise
+    if es_config:
+        current_es_config.set(es_config)
 
 
 async def resolve_config_and_vars(

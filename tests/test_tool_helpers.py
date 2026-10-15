@@ -87,14 +87,27 @@ def test_extract_and_set_es_server_sets_context_from_headers(monkeypatch):
     assert current_es_config.get() == {"es_server": "https://es.from.header"}
 
 
-def test_extract_and_set_es_server_swallows_decryption_errors(monkeypatch):
-    """Header decryption failures fall back to env vars instead of raising."""
+def test_extract_and_set_es_server_rejects_invalid_header(monkeypatch, caplog):
+    """A present-but-invalid encrypted header raises instead of falling back to env vars."""
 
     def broken(_headers):
         raise ValueError("bad key")
 
     monkeypatch.setattr(tool_helpers, "get_es_config_from_headers", broken)
     request = SimpleNamespace(headers={"x-encrypted-context": "blob"})
+    ctx = SimpleNamespace(request_context=SimpleNamespace(request=request))
+
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="bad key"):
+        extract_and_set_es_server(ctx)
+
+    assert current_es_config.get() is None
+    assert any(r.levelname == "WARNING" for r in caplog.records)
+
+
+def test_extract_and_set_es_server_without_header_keeps_env_fallback(monkeypatch):
+    """No encrypted header leaves the context unset so env vars are used."""
+    monkeypatch.setattr(tool_helpers, "get_es_config_from_headers", lambda _headers: None)
+    request = SimpleNamespace(headers={})
     ctx = SimpleNamespace(request_context=SimpleNamespace(request=request))
 
     extract_and_set_es_server(ctx)
