@@ -27,7 +27,7 @@ def metric_key(metric: dict) -> str:
     return f"{name}_{metric_of_interest}"
 
 
-def render_config_yaml(config_path: str, version: str = "", input_vars: dict | None = None) -> dict:
+def render_config_yaml(config_path: str, version: str = "", input_vars: dict | str | None = None) -> dict:
     """Render an Orion config template and parse the resulting YAML.
 
     Template variables come from the (lower-cased) environment, a set of
@@ -64,7 +64,7 @@ def render_config_yaml(config_path: str, version: str = "", input_vars: dict | N
     return yaml.safe_load(rendered)
 
 
-def load_config_metrics_with_meta(config_path: str, version: str = "", input_vars: dict | None = None) -> tuple[list[str], dict]:
+def load_config_metrics_with_meta(config_path: str, version: str = "", input_vars: dict | str | None = None) -> tuple[list[str], dict]:
     """Return the metric names defined by a config and per-metric metadata.
 
     Metrics are collected from inline ``tests[].metrics`` entries and from any
