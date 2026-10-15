@@ -28,8 +28,27 @@ RELEASE_DATES = {
 }
 
 # MCP server defaults
+MCP_SERVER_NAME = "orion-mcp"
 MCP_SERVER_HOST = "0.0.0.0"
 MCP_SERVER_PORT = 3030
+DEFAULT_MCP_TRANSPORT = "streamable-http"
+
+# Tool defaults
+DEFAULT_METRIC = "podReadyLatency_P99"
+
+# User-facing tool messages
+PR_CONFIG_REQUIRED_MSG = (
+    "config_name is required — call discover_jobs with job_type='pull' first to resolve PR configs"
+)
+NO_PR_DATA_MSG = (
+    "No performance data found for this PR. "
+    "Please ensure the PR has been tested and the version is correct."
+)
+NO_CHANGEPOINTS_MSG = "No changepoints found"
+NO_REGRESSIONS_MSG = "No regressions found"
+MISSING_CORRELATION_METRICS_MSG = (
+    "Requested metrics not present in the Orion summary for the chosen configuration."
+)
 
 # Elasticsearch index defaults
 DEFAULT_ES_METADATA_INDEX = "perf_scale_ci*"

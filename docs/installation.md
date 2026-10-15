@@ -48,7 +48,7 @@ pip install -r requirements.txt
 
 #### Step 4: Verify Installation
 ```bash
-python -c "import orion_mcp; print('✅ Installation successful')"
+python -c "import server; print('✅ Installation successful')"
 ```
 
 ### Method 2: Container Installation
@@ -156,13 +156,13 @@ export ES_SERVER="https://opensearch:9200"
 ### Test Installation
 ```bash
 # Start server
-python orion_mcp.py &
+python server.py &
 
 # Verify server is running (check logs for startup messages)
 # Server should start on http://localhost:3030
 
 # Stop server
-pkill -f orion_mcp.py
+pkill -f server.py
 ```
 
 ### Expected Output
@@ -230,7 +230,7 @@ Enable detailed logging:
 ```bash
 export ORION_DEBUG=1
 export PYTHONUNBUFFERED=1
-python orion_mcp.py
+python server.py
 ```
 
 ### Log Analysis

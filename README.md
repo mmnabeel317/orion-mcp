@@ -57,7 +57,7 @@ Set the data-source endpoint and launch the server locally:
 
 ```bash
 export ES_SERVER="https://opensearch.example.com:9200"
-python orion_mcp.py  # listens on 0.0.0.0:3030 by default
+python server.py  # listens on 0.0.0.0:3030 by default
 ```
 
 ---
@@ -129,7 +129,31 @@ To access the service externally, expose it using an **OpenShift Route** and poi
 
 ## Development
 
+### Project layout
+
+```
+server.py                  # FastMCP app; loads everything under components/ via FileSystemProvider
+components/
+├── tools/                 # one MCP tool (or closely related tool family) per module
+├── resources/             # MCP resources
+└── prompts/               # MCP prompts (placeholder)
+utils/
+├── utils.py               # Orion runner, result summarizer, plot generation
+├── config_parser.py       # Orion config rendering and metric metadata
+├── tool_helpers.py        # shared tool parameter types and helpers
+├── header_decryption.py   # ES config from encrypted request headers
+└── constants.py           # defaults, release dates, user-facing messages
+tests/                     # pytest unit tests (run_orion is mocked; no ES needed)
+```
+
+To add a tool, create a module under `components/tools/` and decorate the
+function with `@tool()` from `fastmcp.tools` — `server.py` picks it up
+automatically.
+
 ```bash
+# Install test dependencies
+pip install -r requirements-dev.txt
+
 # Run linters & tests
 flake8
 pytest

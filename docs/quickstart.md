@@ -50,7 +50,7 @@ export ES_SERVER="https://your-opensearch-endpoint:9200"
 Start the MCP server:
 
 ```bash
-python orion_mcp.py
+python server.py
 ```
 
 The server will start on `http://localhost:3030`

@@ -19,6 +19,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 
@@ -274,6 +275,28 @@ def get_data_source() -> str:
         raise EnvironmentError("ES_SERVER environment variable is not set")
     logger.info("Using ES_SERVER from environment variable")
     return value
+
+
+_SENSITIVE_QUERY_KEY = re.compile(r"token|key|secret|pass|pwd|auth|credential|sig", re.IGNORECASE)
+
+
+def redact_url(url: str) -> str:
+    """Strip userinfo and sensitive query parameter values from a URL.
+
+    Removes ``user:password@`` credentials and replaces the value of query
+    parameters whose names look sensitive (token, key, secret, password, ...)
+    with ``REDACTED``. Used before exposing the data-source URL to clients.
+    """
+    try:
+        parts = urlsplit(url)
+        netloc = parts.netloc.rpartition("@")[2]
+        query = urlencode(
+            [(k, "REDACTED" if _SENSITIVE_QUERY_KEY.search(k) else v)
+             for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+        )
+        return urlunsplit((parts.scheme, netloc, parts.path, query, parts.fragment))
+    except ValueError:
+        return "<redacted>"
 
 
 def get_es_metadata_index() -> str:
